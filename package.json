@@ -4,12 +4,16 @@
   "main": "index.js",
   "author": "Boris Cherny <bcherny@fb.com>",
   "license": "MIT",
+  "scripts": {
+    "start": "ts-node server.ts"
+  },
   "dependencies": {
     "express": "^4.17.1",
     "ts-node": "^8.10.1",
     "ws": "^7.3.0"
   },
   "devDependencies": {
+    "@types/ws": "^7.2.4",
     "typescript": "^3.9.3"
   }
 }
