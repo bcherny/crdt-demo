@@ -1,5 +1,8 @@
 import React, { useEffect, useState, ChangeEvent, useCallback, useMemo, useRef } from "react"
 import "./App.css"
+import { OT, is, OTToState } from "./ot"
+import { transform } from "./transform"
+import { last, uid } from "./util"
 
 export function App() {
   let [buffer, setBuffer] = useState<OT[]>([])
@@ -49,45 +52,6 @@ export function App() {
   )
 }
 
-function last<T>(array: readonly T[]): T | undefined {
-  return array[array.length - 1]
-}
-
-function is(a: OT, b: OT): a is typeof b {
-  if (a.type === 'START_MARKER') {
-    return b.type === 'START_MARKER'
-  }
-  if (a.type === 'END_MARKER') {
-    return b.type === 'END_MARKER'
-  }
-  if (a.type === 'CHAR' && b.type === 'CHAR') {
-    return a.id === b.id
-  }
-  return false
-}
-
-function OTToState(ots: readonly OT[]): string {
-  let initial: string[] = []
-  ots.forEach(ot => {
-    switch (ot.type) {
-      case 'CHAR':
-        if (ot.visible) {
-          initial.splice(ot.index, 0, ot.value)
-        } else {
-          delete initial[ot.index]
-        }
-    }
-  })
-  return initial.join('')
-}
-
-function uid() {
-  function S4() {
-    return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
-  }
-  return S4()+S4()+S4()
-}
-
 function stateChangeToOT(
   oldState: string,
   newState: string,
@@ -121,17 +85,6 @@ function stateChangeToOT(
   }
 }
 
-type OT =
-  | {
-      type: "CHAR"
-      id: string
-      index: number
-      value: string
-      visible: boolean
-    }
-  | { type: "START_MARKER" }
-  | { type: "END_MARKER" }
-
 function useSocket(onMessage: (ot: OT) => void) {
 
   let [send, setSend] = useState<null | ((ot: OT) => void)>(null)
@@ -156,14 +109,4 @@ function useSocket(onMessage: (ot: OT) => void) {
   }, [onMessage])
 
   return send
-}
-
-function transform(ot: OT, buffer: readonly OT[]): OT {
-  // switch (ot.type) {
-  //   case 'CHAR':
-  //     if (ot.visible) {
-
-  //     }
-  // }
-  return ot
 }
