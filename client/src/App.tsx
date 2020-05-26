@@ -1,24 +1,46 @@
-import React, { useEffect, useState, ChangeEvent, useCallback } from "react";
-import "./App.css";
+import React, { useEffect, useState, ChangeEvent, useCallback, useMemo, useRef } from "react"
+import "./App.css"
 
 export function App() {
-  let onMessage = useCallback((ot: OT) => {
-    console.log('onMessage', ot)
-  }, [])
-  const socket = useSocket(onMessage);
-  const [buffer, setBuffer] = useState<OT[]>([]);
-  const [state, setState] = useState("");
+  let [buffer, setBuffer] = useState<OT[]>([])
 
+  let addOperationToBuffer = useCallback((ot: OT) => {
+    setBuffer(buffer => {
+      // KILL ALL CYCLES!
+      if (buffer.some(_ => is(_, ot))) {
+        return buffer
+      }
+      return [...buffer, ot]
+    })
+  }, [])
+
+  let onMessage = useCallback((ot: OT) => {
+    addOperationToBuffer(ot)
+  }, [addOperationToBuffer])
+
+  let send = useSocket(onMessage)
+
+  // Derive text state from the buffer
+  let state = useMemo(() => OTToState(buffer), [buffer])
+
+  // Send buffer to server when it changes
+  // TODO: Fix bug where the buffer may have >1 new entry when this fires due to React batching
+  useEffect(() => {
+    let latestOT = last(buffer)
+    if (!latestOT) {
+      return
+    }
+    if (!send) {
+      return
+    }
+    send(latestOT)
+  }, [buffer, send])
 
   function onChange({
     target: { selectionStart, value: newState },
   }: ChangeEvent<HTMLTextAreaElement>) {
-    let ot = stateToOT(state, newState, selectionStart);
-    buffer.push(ot)
-    console.log('ot', ot)
-    setState(OTToState(buffer));
-    setBuffer(buffer)
-    socket.send(ot);
+    let ot = stateChangeToOT(state, newState, selectionStart)
+    addOperationToBuffer(ot)
   }
 
   return (
@@ -28,7 +50,24 @@ export function App() {
       placeholder="Type something..."
       value={state}
     />
-  );
+  )
+}
+
+function last<T>(array: readonly T[]): T | undefined {
+  return array[array.length - 1]
+}
+
+function is(a: OT, b: OT): a is typeof b {
+  if (a.type === 'START_MARKER') {
+    return b.type === 'START_MARKER'
+  }
+  if (a.type === 'END_MARKER') {
+    return b.type === 'END_MARKER'
+  }
+  if (a.type === 'CHAR' && b.type === 'CHAR') {
+    return a.id === b.id
+  }
+  return false
 }
 
 function OTToState(ots: readonly OT[]): string {
@@ -46,11 +85,20 @@ function OTToState(ots: readonly OT[]): string {
   return initial.join('')
 }
 
-function stateToOT(
+function uid() {
+  function S4() {
+    return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+  }
+  return S4()+S4()+S4()
+}
+
+function stateChangeToOT(
   oldState: string,
   newState: string,
   cursorSelection: number
 ): OT {
+
+  let id = uid()
 
   // Insert
   if (newState.length > oldState.length) {
@@ -58,6 +106,7 @@ function stateToOT(
     let newValue = newState[index]
     return {
       type: 'CHAR',
+      id,
       index,
       value: newValue,
       visible: true
@@ -69,6 +118,7 @@ function stateToOT(
   let oldValue = oldState[index]
   return {
     type: 'CHAR',
+    id,
     index,
     value: oldValue,
     visible: false
@@ -77,41 +127,37 @@ function stateToOT(
 
 type OT =
   | {
-      type: "CHAR";
-      index: number;
-      value: string;
-      visible: boolean;
+      type: "CHAR"
+      id: string
+      index: number
+      value: string
+      visible: boolean
     }
   | { type: "START_MARKER" }
-  | { type: "END_MARKER" };
+  | { type: "END_MARKER" }
 
 function useSocket(onMessage: (ot: OT) => void) {
 
-  let ret = {
-    send(ot: OT) {}
-  }
+  let [send, setSend] = useState<null | ((ot: OT) => void)>(null)
 
   useEffect(() => {
-    const socket = new WebSocket("ws://localhost:9000");
-
+    let socket = new WebSocket('ws://localhost:9000')
     console.log('Socket listening on 9000...')
 
-    // Connection opened
-    socket.addEventListener("open", () => {
-      socket.send("Hello Server!");
-    });
-
     // Listen for messages
-    socket.addEventListener("message", (event) => {
-      onMessage(event.data);
-    });
+    socket.addEventListener('message', (event) => {
+      onMessage(JSON.parse(event.data))
+    })
 
-    ret.send = (ot: OT) => {
-      socket.send(JSON.stringify(ot))
-    }
+    socket.addEventListener('open', () => {
+      setSend(() => (ot: OT) => {
+        console.log('send', ot)
+        socket.send(JSON.stringify(ot))
+      })
+    })
 
-    return () => socket.close();
-  }, [onMessage]);
+    return () => socket.close()
+  }, [onMessage])
 
-  return ret
+  return send
 }
