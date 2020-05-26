@@ -4,19 +4,15 @@ import "./App.css"
 export function App() {
   let [buffer, setBuffer] = useState<OT[]>([])
 
-  let addOperationToBuffer = useCallback((ot: OT) => {
+  let onMessage = useCallback((ot: OT) => {
     setBuffer(buffer => {
       // KILL ALL CYCLES!
       if (buffer.some(_ => is(_, ot))) {
         return buffer
       }
-      return [...buffer, ot]
+      return [...buffer, transform(ot, buffer)]
     })
   }, [])
-
-  let onMessage = useCallback((ot: OT) => {
-    addOperationToBuffer(ot)
-  }, [addOperationToBuffer])
 
   let send = useSocket(onMessage)
 
@@ -40,7 +36,7 @@ export function App() {
     target: { selectionStart, value: newState },
   }: ChangeEvent<HTMLTextAreaElement>) {
     let ot = stateChangeToOT(state, newState, selectionStart)
-    addOperationToBuffer(ot)
+    setBuffer(buffer => [...buffer, ot])
   }
 
   return (
@@ -160,4 +156,14 @@ function useSocket(onMessage: (ot: OT) => void) {
   }, [onMessage])
 
   return send
+}
+
+function transform(ot: OT, buffer: readonly OT[]): OT {
+  // switch (ot.type) {
+  //   case 'CHAR':
+  //     if (ot.visible) {
+
+  //     }
+  // }
+  return ot
 }

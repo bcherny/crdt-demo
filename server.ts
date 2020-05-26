@@ -16,7 +16,9 @@ server.on('connection', socket => {
 
   socket.on('message', message => {
     console.log('received: %s', message);
-    activeSockets.forEach(socket => socket.send(message))
+    setTimeout(() => {
+      activeSockets.forEach(socket => socket.send(message))
+    }, 2000)
   })
 
   socket.on('close', () => {
