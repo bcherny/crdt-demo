@@ -1,8 +1,14 @@
-import React, { useEffect, useState, ChangeEvent, useCallback, useMemo, useRef } from "react"
-import "./App.css"
-import { OT, is, OTToState } from "./ot"
-import { transform } from "./transform"
-import { last, uid } from "./util"
+import React, {
+  useEffect,
+  useState,
+  ChangeEvent,
+  useCallback,
+  useMemo,
+} from 'react'
+import './App.css'
+import {OT, is, OTToState} from './ot'
+import {transform} from './transform'
+import {last, uid} from './util'
 
 export function App() {
   let [buffer, setBuffer] = useState<OT[]>([])
@@ -13,7 +19,9 @@ export function App() {
       if (buffer.some(_ => is(_, ot))) {
         return buffer
       }
-      return [...buffer, transform(ot, buffer)]
+      let ot1 = transform(ot, buffer)
+      console.log('recieve', ot, '->', ot1)
+      return [...buffer, ot1]
     })
   }, [])
 
@@ -36,7 +44,7 @@ export function App() {
   }, [buffer, send])
 
   function onChange({
-    target: { selectionStart, value: newState },
+    target: {selectionStart, value: newState},
   }: ChangeEvent<HTMLTextAreaElement>) {
     let ot = stateChangeToOT(state, newState, selectionStart)
     setBuffer(buffer => [...buffer, ot])
@@ -57,7 +65,6 @@ function stateChangeToOT(
   newState: string,
   cursorSelection: number
 ): OT {
-
   let id = uid()
 
   // Insert
@@ -69,7 +76,7 @@ function stateChangeToOT(
       id,
       index,
       value: newValue,
-      visible: true
+      visible: true,
     }
   }
 
@@ -81,12 +88,11 @@ function stateChangeToOT(
     id,
     index,
     value: oldValue,
-    visible: false
+    visible: false,
   }
 }
 
 function useSocket(onMessage: (ot: OT) => void) {
-
   let [send, setSend] = useState<null | ((ot: OT) => void)>(null)
 
   useEffect(() => {
@@ -94,7 +100,7 @@ function useSocket(onMessage: (ot: OT) => void) {
     console.log('Socket listening on 9000...')
 
     // Listen for messages
-    socket.addEventListener('message', (event) => {
+    socket.addEventListener('message', event => {
       onMessage(JSON.parse(event.data))
     })
 

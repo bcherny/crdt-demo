@@ -1,10 +1,7 @@
-export type OT =
-  | CharOT
-  | { type: "START_MARKER" }
-  | { type: "END_MARKER" }
+export type OT = CharOT | {type: 'START_MARKER'} | {type: 'END_MARKER'}
 
 export type CharOT = {
-  type: "CHAR"
+  type: 'CHAR'
   id: string
   index: number
   value: string
