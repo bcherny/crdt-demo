@@ -24,7 +24,7 @@ server.on('connection', socket => {
     let stringifiedCommittedOT = JSON.stringify(committedOT, null, 2)
     setTimeout(() => {
       activeSockets.forEach(socket => socket.send(stringifiedCommittedOT))
-    }, 2000)
+    }, 4000)
   })
 
   socket.on('close', () => {

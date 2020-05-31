@@ -4,29 +4,41 @@ import React, {
   ChangeEvent,
   useCallback,
   useMemo,
+  useRef,
 } from 'react'
 import './App.css'
 import {is, LocalOT, MixedOT, isLocalOT, RemoteOT} from './ot'
 import {transform} from './transform'
-import {last, swap} from './util'
+import {last} from './util'
 import {stateChangeToOT, OTToState} from './mapper'
 
 export function App() {
-  let [buffer, setBuffer] = useState<readonly MixedOT[]>([])
+  let liveBuffer = useRef<MixedOT[]>([])
+  let [buffer, setBuffer] = useState<MixedOT[]>([])
+
+  function flushBufferToUI() {
+    setBuffer(liveBuffer.current)
+  }
 
   let onMessage = useCallback((ot: RemoteOT) => {
-    setBuffer(buffer => {
-      // KILL ALL CYCLES!
-      let otInBuffer = buffer.find(_ => is(_, ot))
-      if (otInBuffer) {
-        console.log('recieve (mine)', ot)
-        return swap(buffer, otInBuffer, ot)
-      }
+    let indexInBuffer = liveBuffer.current.findIndex(_ => is(_, ot))
 
-      let ot1 = transform(ot, buffer)
-      console.log('recieve (theirs)', ot, '->', ot1)
-      return [...buffer, ot1]
-    })
+    // Hack: We don't need React to re-render here, since all that could have changed is
+    // the server setting isCommitted=true. If we do update state here, we'll also run into
+    // a race condition where if the client sent two updates A and B, the server processed
+    // then, and onMessage was called with A, the useEffect block below would fire, re-sending
+    // B, which we don't want. By updating in place and bypassing React state mgmt, we avoid
+    // this.
+    if (indexInBuffer > -1) {
+      console.log('recieve (mine)', ot)
+      liveBuffer.current[indexInBuffer] = ot
+      return
+    }
+
+    let ot1 = transform(ot, liveBuffer.current)
+    console.log('recieve (theirs)', ot, '->', ot1)
+    liveBuffer.current = [...liveBuffer.current, ot1]
+    flushBufferToUI()
   }, [])
 
   let send = useSocket(onMessage)
@@ -34,27 +46,20 @@ export function App() {
   // Derive text state from the buffer
   let state = useMemo(() => OTToState(buffer), [buffer])
 
-  // Send buffer to server when it changes
-  // TODO: Fix bug where the buffer may have >1 new entry when this fires due to React batching
-  useEffect(() => {
-    let latestOT = last(buffer)
-    if (!latestOT) {
-      return
-    }
-    if (!send) {
-      return
-    }
-    if (!isLocalOT(latestOT)) {
-      return
-    }
-    send(latestOT)
-  }, [buffer, send])
-
   function onChange({
     target: {selectionStart, value: newState},
   }: ChangeEvent<HTMLTextAreaElement>) {
+    // Map state change to OT
     let ot = stateChangeToOT(state, newState, selectionStart)
-    setBuffer(buffer => [...buffer, ot])
+
+    // Update local buffer
+    liveBuffer.current = [...buffer, ot]
+
+    // Optimistically update UI
+    flushBufferToUI()
+
+    // Send buffer to server
+    send?.(ot)
   }
 
   return (
