@@ -11,6 +11,20 @@ export function last<T>(array: readonly T[]): T | undefined {
   return array[array.length - 1]
 }
 
+export function del(s: string, index: number): string {
+  if (index < 0) {
+    return s
+  }
+  return s.slice(0, index) + s.slice(index + 1)
+}
+
+export function ins(s: string, needle: string, index: number): string {
+  if (index < 0) {
+    return s
+  }
+  return s.slice(0, index) + needle + s.slice(index)
+}
+
 export function swap<T>(
   array: readonly T[],
   element: T,

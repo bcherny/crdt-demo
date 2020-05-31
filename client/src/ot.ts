@@ -44,18 +44,3 @@ export function is(a: MixedOT, b: MixedOT): a is typeof b {
   }
   return false
 }
-
-export function OTToState(ots: readonly MixedOT[]): string {
-  let initial: string[] = []
-  ots.forEach(ot => {
-    switch (ot.type) {
-      case 'CHAR':
-        if (ot.visible) {
-          initial.splice(ot.index, 0, ot.value)
-        } else {
-          delete initial[ot.index]
-        }
-    }
-  })
-  return initial.join('')
-}

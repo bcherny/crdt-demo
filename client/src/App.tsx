@@ -6,9 +6,10 @@ import React, {
   useMemo,
 } from 'react'
 import './App.css'
-import {is, OTToState, LocalOT, MixedOT, isLocalOT, RemoteOT} from './ot'
+import {is, LocalOT, MixedOT, isLocalOT, RemoteOT} from './ot'
 import {transform} from './transform'
-import {last, uid, swap} from './util'
+import {last, swap} from './util'
+import {stateChangeToOT, OTToState} from './mapper'
 
 export function App() {
   let [buffer, setBuffer] = useState<readonly MixedOT[]>([])
@@ -46,7 +47,7 @@ export function App() {
     if (!isLocalOT(latestOT)) {
       return
     }
-    send(latestOT as any) // TODO
+    send(latestOT)
   }, [buffer, send])
 
   function onChange({
@@ -64,38 +65,6 @@ export function App() {
       value={state}
     />
   )
-}
-
-function stateChangeToOT(
-  oldState: string,
-  newState: string,
-  cursorSelection: number
-): LocalOT {
-  // Insert
-  if (newState.length > oldState.length) {
-    let index = cursorSelection - 1
-    let newValue = newState[index]
-    return {
-      type: 'CHAR',
-      id: uid(),
-      index,
-      isCommitted: false,
-      value: newValue,
-      visible: true,
-    }
-  }
-
-  // Delete
-  let index = cursorSelection
-  let oldValue = oldState[index]
-  return {
-    type: 'CHAR',
-    id: uid(),
-    index,
-    isCommitted: false,
-    value: oldValue,
-    visible: false,
-  }
 }
 
 function useSocket(onMessage: (ot: RemoteOT) => void) {
