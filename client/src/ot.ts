@@ -1,14 +1,38 @@
-export type OT = CharOT | {type: 'START_MARKER'} | {type: 'END_MARKER'}
+export type LocalOT =
+  | LocalCharOT
+  | {type: 'START_MARKER'}
+  | {type: 'END_MARKER'}
 
-export type CharOT = {
-  type: 'CHAR'
+export type RemoteOT =
+  | RemoteCharOT
+  | {type: 'START_MARKER'}
+  | {type: 'END_MARKER'}
+
+export type LocalCharOT = {
   id: string
+  isCommitted: false
+  type: 'CHAR'
   index: number
   value: string
   visible: boolean
 }
 
-export function is(a: OT, b: OT): a is typeof b {
+export type RemoteCharOT = {
+  id: string
+  isCommitted: true
+  type: 'CHAR'
+  index: number
+  value: string
+  visible: boolean
+}
+
+export type MixedOT = LocalOT | RemoteOT
+
+export function isLocalOT(ot: MixedOT): ot is LocalOT {
+  return ot.type === 'CHAR' && !ot.isCommitted
+}
+
+export function is(a: MixedOT, b: MixedOT): a is typeof b {
   if (a.type === 'START_MARKER') {
     return b.type === 'START_MARKER'
   }
@@ -21,7 +45,7 @@ export function is(a: OT, b: OT): a is typeof b {
   return false
 }
 
-export function OTToState(ots: readonly OT[]): string {
+export function OTToState(ots: readonly MixedOT[]): string {
   let initial: string[] = []
   ots.forEach(ot => {
     switch (ot.type) {

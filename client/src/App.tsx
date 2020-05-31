@@ -6,21 +6,24 @@ import React, {
   useMemo,
 } from 'react'
 import './App.css'
-import {OT, is, OTToState} from './ot'
+import {is, OTToState, LocalOT, MixedOT, isLocalOT, RemoteOT} from './ot'
 import {transform} from './transform'
-import {last, uid} from './util'
+import {last, uid, swap} from './util'
 
 export function App() {
-  let [buffer, setBuffer] = useState<OT[]>([])
+  let [buffer, setBuffer] = useState<readonly MixedOT[]>([])
 
-  let onMessage = useCallback((ot: OT) => {
+  let onMessage = useCallback((ot: RemoteOT) => {
     setBuffer(buffer => {
       // KILL ALL CYCLES!
-      if (buffer.some(_ => is(_, ot))) {
-        return buffer
+      let otInBuffer = buffer.find(_ => is(_, ot))
+      if (otInBuffer) {
+        console.log('recieve (mine)', ot)
+        return swap(buffer, otInBuffer, ot)
       }
+
       let ot1 = transform(ot, buffer)
-      console.log('recieve', ot, '->', ot1)
+      console.log('recieve (theirs)', ot, '->', ot1)
       return [...buffer, ot1]
     })
   }, [])
@@ -40,7 +43,10 @@ export function App() {
     if (!send) {
       return
     }
-    send(latestOT)
+    if (!isLocalOT(latestOT)) {
+      return
+    }
+    send(latestOT as any) // TODO
   }, [buffer, send])
 
   function onChange({
@@ -64,17 +70,16 @@ function stateChangeToOT(
   oldState: string,
   newState: string,
   cursorSelection: number
-): OT {
-  let id = uid()
-
+): LocalOT {
   // Insert
   if (newState.length > oldState.length) {
     let index = cursorSelection - 1
     let newValue = newState[index]
     return {
       type: 'CHAR',
-      id,
+      id: uid(),
       index,
+      isCommitted: false,
       value: newValue,
       visible: true,
     }
@@ -85,15 +90,16 @@ function stateChangeToOT(
   let oldValue = oldState[index]
   return {
     type: 'CHAR',
-    id,
+    id: uid(),
     index,
+    isCommitted: false,
     value: oldValue,
     visible: false,
   }
 }
 
-function useSocket(onMessage: (ot: OT) => void) {
-  let [send, setSend] = useState<null | ((ot: OT) => void)>(null)
+function useSocket(onMessage: (ot: RemoteOT) => void) {
+  let [send, setSend] = useState<null | ((ot: LocalOT) => void)>(null)
 
   useEffect(() => {
     let socket = new WebSocket('ws://localhost:9000')
@@ -105,7 +111,7 @@ function useSocket(onMessage: (ot: OT) => void) {
     })
 
     socket.addEventListener('open', () => {
-      setSend(() => (ot: OT) => {
+      setSend(() => (ot: LocalOT) => {
         console.log('send', ot)
         socket.send(JSON.stringify(ot))
       })

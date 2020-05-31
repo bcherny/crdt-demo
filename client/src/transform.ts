@@ -1,25 +1,33 @@
-import {OT} from './ot'
+import {MixedOT, RemoteOT} from './ot'
 
 export function applyTransformsToBuffer(
-  updates: readonly OT[],
-  buffer: readonly OT[]
-): readonly OT[] {
+  updates: readonly RemoteOT[],
+  buffer: readonly MixedOT[]
+): readonly MixedOT[] {
   return updates.reduce((b, ot) => [...b, transform(ot, b)], buffer)
 }
 
-export function transform(ot: OT, buffer: readonly OT[]): OT {
+export function transform(ot: RemoteOT, buffer: readonly MixedOT[]): RemoteOT {
   switch (ot.type) {
     case 'CHAR':
       if (ot.visible) {
         let leftShiftCount = buffer.filter(
-          _ => _.type === 'CHAR' && _.index <= ot.index && !_.visible
+          _ =>
+            _.type === 'CHAR' &&
+            _.index <= ot.index &&
+            !_.visible &&
+            !_.isCommitted
         ).length
-        // let rightShiftCount = buffer.filter(
-        //   _ => _.type === 'CHAR' && _.index <= ot.index && _.visible
-        // ).length
+        let rightShiftCount = buffer.filter(
+          _ =>
+            _.type === 'CHAR' &&
+            _.index <= ot.index &&
+            _.visible &&
+            !_.isCommitted
+        ).length
         return {
           ...ot,
-          index: ot.index - leftShiftCount, //+ rightShiftCount,
+          index: ot.index - leftShiftCount + rightShiftCount,
         }
       }
   }

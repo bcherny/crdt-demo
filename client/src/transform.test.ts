@@ -1,43 +1,42 @@
 import {transform, applyTransformsToBuffer} from './transform'
-import {CharOT, OTToState} from './ot'
-import {uid} from './util'
+import {OTToState, RemoteCharOT, LocalCharOT, MixedOT} from './ot'
+import {uid, s} from './util'
 ;[
   {
-    buffer: [ot(0, 'a'), ot(0, 'a', false)],
-    input: ot(1, 'b'),
-    output: ot(0, 'b'),
+    buffer: [rot(0, 'a'), lot(0, 'a', false)],
+    input: rot(1, 'b'),
+    output: rot(1, 'b'),
   },
 ].forEach(({buffer, input, output}) => {
   test(`transform() shifts left/right: `, () => {
-    assertCharsEqual(transform(input, buffer) as CharOT, output)
+    assertCharsEqual(transform(input, buffer), output)
   })
 })
-
-function s(ots: CharOT | CharOT[]): string {
-  if (Array.isArray(ots)) {
-    return ots.map(s).join(' ')
-  }
-  return `${ots.visible ? '' : '-'}${ots.value}`
-}
 
 describe('transform() is commutative', () => {
   let cases = [
     {
-      initialState: [ot(0, 'a'), ot(1, 'b'), ot(2, 'e')],
-      updateA: [ot(1, 'b', false)],
-      updateB: [ot(2, 'c')],
+      initialState: [rot(0, 'a'), rot(1, 'b'), rot(2, 'e')],
+      updateA: [rot(1, 'b', false)],
+      updateB: [rot(2, 'c')],
       expectedText: 'ace',
     },
     {
       initialState: [],
-      updateA: [ot(0, 'a'), ot(1, 'b')],
-      updateB: [ot(0, 'a'), ot(1, 'b')],
+      updateA: [rot(0, 'a'), rot(1, 'b')],
+      updateB: [rot(0, 'a'), rot(1, 'b')],
       expectedText: 'abab',
+    },
+    {
+      initialState: [rot(0, 'o')],
+      updateA: [rot(1, 'b'), rot(2, 'a')],
+      updateB: [rot(0, 'b')],
+      expectedText: 'boba',
     },
   ]
   cases.forEach(({expectedText, initialState, updateA, updateB}) => {
-    let a = [...initialState, ...updateA]
-    let b = [...initialState, ...updateB]
+    let a = [...initialState, {type: 'START_MARKER'} as const, ...updateA]
+    let b = [...initialState, {type: 'START_MARKER'} as const, ...updateB]
     test(`${s(a)} + ${s(updateB)} = ${s(b)} + ${s(
       updateA
     )} = ${expectedText}`, () => {
@@ -47,28 +46,33 @@ describe('transform() is commutative', () => {
   })
 })
 
-function assertBuffersEqual(
-  as: readonly CharOT[],
-  bs: readonly CharOT[]
-): void {
-  expect(as.map(stringify)).toEqual(bs.map(stringify))
+// function assertBuffersEqual(
+//   as: readonly CharOT[],
+//   bs: readonly CharOT[]
+// ): void {
+//   expect(as.map(stringify)).toEqual(bs.map(stringify))
+// }
+
+function assertCharsEqual(a: MixedOT, b: MixedOT): void {
+  expect(s(a)).toBe(s(b))
 }
 
-function assertCharsEqual(a: CharOT, b: CharOT): void {
-  expect(stringify(a)).toBe(stringify(b))
-}
-
-function stringify(ot: CharOT): string {
-  if (!ot.visible) {
-    return '(-' + ot.index + ': ' + ot.value + ')'
-  }
-  return '(+' + ot.index + ': ' + ot.value + ')'
-}
-
-function ot(index: number, value: string, visible = true): CharOT {
+function lot(index: number, value: string, visible = true): LocalCharOT {
   return {
     type: 'CHAR',
     id: uid(),
+    isCommitted: false,
+    index,
+    value,
+    visible,
+  }
+}
+
+function rot(index: number, value: string, visible = true): RemoteCharOT {
+  return {
+    type: 'CHAR',
+    id: uid(),
+    isCommitted: true,
     index,
     value,
     visible,
