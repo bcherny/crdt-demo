@@ -11,14 +11,20 @@ export const EndOP: EndOP = {type: 'END_MARKER', id: ['END_MARKER', -1]}
  */
 export type ID = readonly [string, number]
 
-export type CharOP = {
+type DeepReadonly<A> = A extends (infer B)[]
+  ? Readonly<B>[]
+  : A extends object
+  ? {readonly [K in keyof A]: Readonly<A[K]>}
+  : Readonly<A>
+
+export type CharOP = DeepReadonly<{
   id: ID
-  index: number
+  indices: [number, number]
   type: 'CHAR'
   maxSeenIDs: {[clientID: string]: number}
   value: string
   visible: boolean
-}
+}>
 
 export function isID(a: ID, b: ID): boolean {
   return a[0] === b[0] && a[1] === b[1]

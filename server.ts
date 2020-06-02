@@ -1,5 +1,4 @@
 import WebSocket from 'ws'
-import {OP} from './client/src/ot'
 
 const server = new WebSocket.Server({
   port: 9000,
@@ -18,9 +17,9 @@ server.on('connection', socket => {
   socket.on('message', message => {
     console.log('received: %s', message)
     // TODO: Write to DB
-    setTimeout(() => {
-      activeSockets.forEach(socket => socket.send(message))
-    }, 4000)
+    // setTimeout(() => {
+    activeSockets.forEach(socket => socket.send(message))
+    // }, 4000)
   })
 
   socket.on('close', () => {

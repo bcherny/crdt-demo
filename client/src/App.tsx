@@ -10,7 +10,9 @@ import './App.css'
 import {is, OP, StartOP} from './ot'
 import {transform} from './transform'
 import {uid} from './util'
-import {stateChangeToOT, OTToState} from './mapper'
+import {applyInsertToState, OTToState, applyDeleteToState} from './mapper'
+import {Editor} from './Editor'
+import {getDefaultKeyBinding} from 'draft-js'
 
 let clientID = uid()
 let initialBuffer = [StartOP]
@@ -51,35 +53,66 @@ export function App() {
   // Derive text state from the buffer
   let state = useMemo(() => OTToState(buffer), [buffer])
 
-  function onChange({
-    target: {selectionStart, value: newState},
-  }: ChangeEvent<HTMLTextAreaElement>) {
-    // Map state change to OT
-    let ot = stateChangeToOT(
-      state,
-      newState,
-      selectionStart,
-      clientID,
-      liveBuffer.current
-    )
+  function onChange(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+    selectedText: string,
+    selection: [number, number]
+  ) {
+    console.log('selection', selection)
+    // let {
+    //   currentTarget: {selectionEnd, selectionStart, value: newState},
+    // } = event
+    // console.log('target', event, event.key, {
+    //   selectionEnd,
+    //   selectionStart,
+    //   newState,
+    // })
+    // event.persist()
+    // console.log(event.key)
+    // Map state change to an operation
+    let op =
+      event.key === 'Backspace' || event.key === 'Del' || event.key === 'Delete'
+        ? applyDeleteToState(
+            state,
+            selection[0],
+            selection[1],
+            clientID,
+            liveBuffer.current
+          )
+        : event.key.length === 1
+        ? applyInsertToState(
+            event.key,
+            selection[0],
+            selection[1],
+            clientID,
+            liveBuffer.current
+          )
+        : null
+
+    if (op === null) {
+      return
+    }
 
     // Update local buffer
-    liveBuffer.current = [...liveBuffer.current, ot]
+    liveBuffer.current = [...liveBuffer.current, op]
 
     // Optimistically update UI
     flushBufferToUI()
 
     // Send buffer to server
-    send?.(ot)
+    send?.(op)
+
+    return getDefaultKeyBinding(event)
   }
 
   return (
-    <textarea
-      className="textarea"
-      onChange={onChange}
-      placeholder="Type something..."
-      value={state}
-    />
+    <div className="App">
+      <Editor
+        onKeyDown={onChange}
+        placeholder="Type something..."
+        value={state}
+      />
+    </div>
   )
 }
 

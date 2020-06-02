@@ -1,4 +1,5 @@
 .App {
+  margin: 50px;
   text-align: center;
 }
 
@@ -35,4 +36,13 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.DraftEditor-root {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px #0003;
+  margin: 0 auto;
+  max-width: 700px;
+  padding: 20px;
 }

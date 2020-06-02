@@ -18,13 +18,13 @@ function it(ot: OP, contextOT: OP): OP {
             return {...ot, visible: false}
           }
           // Rebase: Inserted after
-          if (ot.index >= contextOT.index) {
+          if (ot.indices[0] >= contextOT.indices[0]) {
             if (ot.id[0] > contextOT.id[0]) {
               // win
               return ot
             } else {
               // lose
-              return {...ot, index: ot.index + 1}
+              return {...ot, indices: [ot.indices[0] + 1, ot.indices[1] + 1]}
             }
           }
           return ot

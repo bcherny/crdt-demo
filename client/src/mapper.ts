@@ -7,11 +7,11 @@ function betaReduceOT(ots: readonly OP[]): readonly OP[] {
       case 'CHAR':
         if (ot.visible) {
           // insert
-          acc.splice(ot.index, 0, ot)
+          acc.splice(ot.indices[0], 0, ot)
           return acc
         }
         // delete
-        acc.splice(ot.index, 1)
+        acc.splice(ot.indices[0], ot.indices[1] - ot.indices[0])
         return acc
       case 'START_MARKER':
       case 'END_MARKER':
@@ -42,15 +42,11 @@ export function indexToID(index: number, buffer: readonly OP[]): ID {
   return betaReduceOT(buffer)[index].id
 }
 
-let operationID = 0
-export function stateChangeToOT(
-  oldState: string,
-  newState: string,
-  cursorSelection: number,
+function getMaxSeenIDs(
   clientID: string,
   buffer: readonly OP[]
-): OP {
-  let maxSeenIDs = buffer.reduce<{[clientID: string]: number}>((map, op) => {
+): {[clientID: string]: number} {
+  return buffer.reduce<{[clientID: string]: number}>((map, op) => {
     switch (op.type) {
       case 'CHAR':
         let [_clientID, operationID] = op.id
@@ -64,32 +60,54 @@ export function stateChangeToOT(
         return map
     }
   }, {})
+}
 
-  // Insert
-  if (newState.length > oldState.length) {
-    let index = cursorSelection - 1
-    let newValue = newState[index]
-    console.log(`INSERT ${newValue} @${index}`)
-    return {
-      type: 'CHAR',
-      id: [clientID, operationID++],
-      index,
-      maxSeenIDs,
-      value: newValue,
-      visible: true,
-    }
-  }
-
-  // Delete
-  let index = cursorSelection
-  let oldValue = oldState[index]
-  console.log(`DELETE ${oldValue} @${index}`)
+let operationID = 0
+export function applyDeleteToState(
+  oldState: string,
+  selectionStart: number,
+  selectionEnd: number,
+  clientID: string,
+  buffer: readonly OP[]
+): OP {
+  let indices = [selectionStart, selectionEnd] as const
+  console.log('indices', indices)
+  let oldValue = oldState.slice(selectionStart - 1, selectionEnd)
+  console.log(`DELETE "${oldValue}" @${stringifyRange(indices)}`)
   return {
     type: 'CHAR',
     id: [clientID, operationID++],
-    index,
-    maxSeenIDs,
+    indices,
+    maxSeenIDs: getMaxSeenIDs(clientID, buffer),
     value: oldValue,
     visible: false,
   }
+}
+
+export function applyInsertToState(
+  newValue: string,
+  selectionStart: number,
+  selectionEnd: number,
+  clientID: string,
+  buffer: readonly OP[]
+): OP {
+  let maxSeenIDs = getMaxSeenIDs(clientID, buffer)
+  let indices = [selectionStart, selectionEnd] as const
+  // let newValue = newState.slice(selectionStart - 1, selectionEnd)
+  console.log(`INSERT "${newValue}" @${stringifyRange(indices)}`)
+  return {
+    type: 'CHAR',
+    id: [clientID, operationID++],
+    indices,
+    maxSeenIDs,
+    value: newValue,
+    visible: true,
+  }
+}
+
+function stringifyRange([a, b]: readonly [number, number]): string {
+  if (a === b) {
+    return a.toString()
+  }
+  return `${a}-${b}`
 }
