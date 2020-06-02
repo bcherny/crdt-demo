@@ -1,28 +1,17 @@
-import {LocalOP, MixedOP, ID, is, isID} from './ot'
-import {ins, del} from './util'
+import {OP, ID} from './ot'
 
 // OT with tombstones -> reduced, renderable OT
-function betaReduceOT(ots: readonly MixedOP[]): readonly MixedOP[] {
-  return ots.reduce<MixedOP[]>((acc, ot) => {
+function betaReduceOT(ots: readonly OP[]): readonly OP[] {
+  return ots.reduce<OP[]>((acc, ot) => {
     switch (ot.type) {
       case 'CHAR':
-        // let after = ots.findIndex(_ => isID(_.id, ot.after))
-        // if (after < 0) {
-        //   throw ReferenceError(
-        //     `Invariant: Unable to find "after" with id ${
-        //       ot.after
-        //     } to insert node with id ${ot.id} in [${ots
-        //       .map(_ => _.id)
-        //       .join(', ')}]`
-        //   )
-        // }
         if (ot.visible) {
           // insert
           acc.splice(ot.index, 0, ot)
-        } else {
-          // delete
-          acc.splice(ot.index, 1)
+          return acc
         }
+        // delete
+        acc.splice(ot.index, 1)
         return acc
       case 'START_MARKER':
       case 'END_MARKER':
@@ -31,13 +20,13 @@ function betaReduceOT(ots: readonly MixedOP[]): readonly MixedOP[] {
   }, [])
 }
 
-export function OTToState(ots: readonly MixedOP[]): string {
+export function OTToState(ots: readonly OP[]): string {
   return betaReduceOT(ots)
     .map(_ => (_.type === 'CHAR' ? _.value : ''))
     .join('')
 }
 
-export function IDToIndex(id: ID, buffer: readonly MixedOP[]): number {
+export function IDToIndex(id: ID, buffer: readonly OP[]): number {
   let index = betaReduceOT(buffer).findIndex(_ => _.id === id)
   if (index < 0) {
     throw ReferenceError(
@@ -49,7 +38,7 @@ export function IDToIndex(id: ID, buffer: readonly MixedOP[]): number {
   return index
 }
 
-export function indexToID(index: number, buffer: readonly MixedOP[]): ID {
+export function indexToID(index: number, buffer: readonly OP[]): ID {
   return betaReduceOT(buffer)[index].id
 }
 
@@ -59,8 +48,8 @@ export function stateChangeToOT(
   newState: string,
   cursorSelection: number,
   clientID: string,
-  buffer: readonly MixedOP[]
-): LocalOP {
+  buffer: readonly OP[]
+): OP {
   let maxSeenIDs = buffer.reduce<{[clientID: string]: number}>((map, op) => {
     switch (op.type) {
       case 'CHAR':
@@ -85,7 +74,6 @@ export function stateChangeToOT(
       type: 'CHAR',
       id: [clientID, operationID++],
       index,
-      isCommitted: false,
       maxSeenIDs,
       value: newValue,
       visible: true,
@@ -100,7 +88,6 @@ export function stateChangeToOT(
     type: 'CHAR',
     id: [clientID, operationID++],
     index,
-    isCommitted: false,
     maxSeenIDs,
     value: oldValue,
     visible: false,

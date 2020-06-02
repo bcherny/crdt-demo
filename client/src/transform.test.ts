@@ -1,5 +1,5 @@
 import {transform, applyTransformsToBuffer} from './transform'
-import {OTToState, RemoteCharOP, LocalCharOP, MixedOP} from './ot'
+import {CharOP, OP} from './ot'
 import {uid, s} from './util'
 ;[
   {
@@ -53,11 +53,11 @@ describe('transform() is commutative', () => {
 //   expect(as.map(stringify)).toEqual(bs.map(stringify))
 // }
 
-function assertCharsEqual(a: MixedOP, b: MixedOP): void {
+function assertCharsEqual(a: OP, b: OP): void {
   expect(s(a)).toBe(s(b))
 }
 
-function lot(index: number, value: string, visible = true): LocalCharOP {
+function lot(index: number, value: string, visible = true): CharOP {
   return {
     type: 'CHAR',
     id: uid(),
@@ -68,7 +68,7 @@ function lot(index: number, value: string, visible = true): LocalCharOP {
   }
 }
 
-function rot(index: number, value: string, visible = true): RemoteCharOP {
+function rot(index: number, value: string, visible = true): CharOP {
   return {
     type: 'CHAR',
     id: uid(),

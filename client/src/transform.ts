@@ -1,14 +1,14 @@
-import {MixedOP, RemoteOP, isID} from './ot'
+import {OP} from './ot'
 
 export function applyTransformsToBuffer(
-  updates: readonly RemoteOP[],
-  buffer: readonly MixedOP[],
+  updates: readonly OP[],
+  buffer: readonly OP[],
   clientID: string
-): readonly MixedOP[] {
+): readonly OP[] {
   return updates.reduce((b, ot) => [...b, transform(ot, b, clientID)], buffer)
 }
 
-function it(ot: RemoteOP, contextOT: MixedOP): RemoteOP {
+function it(ot: OP, contextOT: OP): OP {
   switch (ot.type) {
     case 'CHAR':
       switch (contextOT.type) {
@@ -38,17 +38,13 @@ function it(ot: RemoteOP, contextOT: MixedOP): RemoteOP {
   }
 }
 
-export function transform(
-  op: RemoteOP,
-  buffer: readonly MixedOP[],
-  clientID: string
-): RemoteOP {
+export function transform(op: OP, buffer: readonly OP[], clientID: string): OP {
   switch (op.type) {
     case 'CHAR':
       // Grab the latest sequence ID of ops in our buffer that they saw
       let latestID = op.maxSeenIDs[clientID] ?? -1
 
-      let opTransformed: RemoteOP = op
+      let opTransformed: OP = op
       for (let i = 0; i < buffer.length; i++) {
         let _op = buffer[i]
         if (_op.type !== 'CHAR') {

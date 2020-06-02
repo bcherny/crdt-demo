@@ -1,5 +1,5 @@
 import WebSocket from 'ws'
-import {LocalOP, RemoteOP} from './client/src/ot'
+import {OP} from './client/src/ot'
 
 const server = new WebSocket.Server({
   port: 9000,
@@ -17,13 +17,9 @@ server.on('connection', socket => {
 
   socket.on('message', message => {
     console.log('received: %s', message)
-    let ot: LocalOP = JSON.parse(message.toString())
-    let committedOT: RemoteOP =
-      ot.type === 'CHAR' ? {...ot, isCommitted: true} : ot
     // TODO: Write to DB
-    let stringifiedCommittedOT = JSON.stringify(committedOT, null, 2)
     setTimeout(() => {
-      activeSockets.forEach(socket => socket.send(stringifiedCommittedOT))
+      activeSockets.forEach(socket => socket.send(message))
     }, 4000)
   })
 

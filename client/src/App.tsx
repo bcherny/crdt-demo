@@ -7,25 +7,25 @@ import React, {
   useRef,
 } from 'react'
 import './App.css'
-import {is, LocalOP, MixedOP, RemoteOP, StartOP, EndOP} from './ot'
+import {is, OP, StartOP} from './ot'
 import {transform} from './transform'
 import {uid} from './util'
 import {stateChangeToOT, OTToState} from './mapper'
 
 let clientID = uid()
-let initialBuffer = [StartOP] // EndOP
+let initialBuffer = [StartOP]
 
 console.log('🌈 clientID=', clientID)
 
 export function App() {
-  let liveBuffer = useRef<MixedOP[]>(initialBuffer)
-  let [buffer, setBuffer] = useState<MixedOP[]>(initialBuffer)
+  let liveBuffer = useRef<OP[]>(initialBuffer)
+  let [buffer, setBuffer] = useState<OP[]>(initialBuffer)
 
   function flushBufferToUI() {
     setBuffer(liveBuffer.current)
   }
 
-  let onMessage = useCallback((ot: RemoteOP) => {
+  let onMessage = useCallback((ot: OP) => {
     let indexInBuffer = liveBuffer.current.findIndex(_ => is(_, ot))
 
     // Hack: We don't need React to re-render here, since all that could have changed is
@@ -83,8 +83,8 @@ export function App() {
   )
 }
 
-function useSocket(onMessage: (ot: RemoteOP) => void) {
-  let [send, setSend] = useState<null | ((ot: LocalOP) => void)>(null)
+function useSocket(onMessage: (ot: OP) => void) {
+  let [send, setSend] = useState<null | ((ot: OP) => void)>(null)
 
   useEffect(() => {
     let socket = new WebSocket('ws://localhost:9000')
@@ -96,7 +96,7 @@ function useSocket(onMessage: (ot: RemoteOP) => void) {
     })
 
     socket.addEventListener('open', () => {
-      setSend(() => (ot: LocalOP) => {
+      setSend(() => (ot: OP) => {
         console.log('send', ot)
         socket.send(JSON.stringify(ot))
       })
