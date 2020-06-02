@@ -7,20 +7,25 @@ import React, {
   useRef,
 } from 'react'
 import './App.css'
-import {is, LocalOT, MixedOT, isLocalOT, RemoteOT} from './ot'
+import {is, LocalOP, MixedOP, RemoteOP, StartOP, EndOP} from './ot'
 import {transform} from './transform'
-import {last} from './util'
+import {uid} from './util'
 import {stateChangeToOT, OTToState} from './mapper'
 
+let clientID = uid()
+let initialBuffer = [StartOP] // EndOP
+
+console.log('🌈 clientID=', clientID)
+
 export function App() {
-  let liveBuffer = useRef<MixedOT[]>([])
-  let [buffer, setBuffer] = useState<MixedOT[]>([])
+  let liveBuffer = useRef<MixedOP[]>(initialBuffer)
+  let [buffer, setBuffer] = useState<MixedOP[]>(initialBuffer)
 
   function flushBufferToUI() {
     setBuffer(liveBuffer.current)
   }
 
-  let onMessage = useCallback((ot: RemoteOT) => {
+  let onMessage = useCallback((ot: RemoteOP) => {
     let indexInBuffer = liveBuffer.current.findIndex(_ => is(_, ot))
 
     // Hack: We don't need React to re-render here, since all that could have changed is
@@ -35,7 +40,7 @@ export function App() {
       return
     }
 
-    let ot1 = transform(ot, liveBuffer.current)
+    let ot1 = transform(ot, liveBuffer.current, clientID)
     console.log('recieve (theirs)', ot, '->', ot1)
     liveBuffer.current = [...liveBuffer.current, ot1]
     flushBufferToUI()
@@ -50,10 +55,16 @@ export function App() {
     target: {selectionStart, value: newState},
   }: ChangeEvent<HTMLTextAreaElement>) {
     // Map state change to OT
-    let ot = stateChangeToOT(state, newState, selectionStart)
+    let ot = stateChangeToOT(
+      state,
+      newState,
+      selectionStart,
+      clientID,
+      liveBuffer.current
+    )
 
     // Update local buffer
-    liveBuffer.current = [...buffer, ot]
+    liveBuffer.current = [...liveBuffer.current, ot]
 
     // Optimistically update UI
     flushBufferToUI()
@@ -72,8 +83,8 @@ export function App() {
   )
 }
 
-function useSocket(onMessage: (ot: RemoteOT) => void) {
-  let [send, setSend] = useState<null | ((ot: LocalOT) => void)>(null)
+function useSocket(onMessage: (ot: RemoteOP) => void) {
+  let [send, setSend] = useState<null | ((ot: LocalOP) => void)>(null)
 
   useEffect(() => {
     let socket = new WebSocket('ws://localhost:9000')
@@ -85,7 +96,7 @@ function useSocket(onMessage: (ot: RemoteOT) => void) {
     })
 
     socket.addEventListener('open', () => {
-      setSend(() => (ot: LocalOT) => {
+      setSend(() => (ot: LocalOP) => {
         console.log('send', ot)
         socket.send(JSON.stringify(ot))
       })

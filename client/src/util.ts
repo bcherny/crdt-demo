@@ -1,4 +1,4 @@
-import {MixedOT} from './ot'
+import {MixedOP} from './ot'
 
 export function uid() {
   function S4() {
@@ -37,7 +37,7 @@ export function swap<T>(
   return [...array.slice(0, index), replacement, ...array.slice(index + 1)]
 }
 
-export function s(ots: MixedOT | MixedOT[]): string {
+export function s(ots: MixedOP | MixedOP[]): string {
   if (Array.isArray(ots)) {
     return ots.map(s).join(' ')
   }
